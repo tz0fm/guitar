@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Guitar">
+  <meta name="theme-color" content="#111318">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <title>Guitar</title>
+  <style>
+    :root {
+      --bg: #111318;
+      --surface: #1a1d24;
+      --surface-2: #252a34;
+      --line: #2c313c;
+      --text: #f3f1ee;
+      --muted: #8b909c;
+      --accent: #ff8a3d;
+      --accent-dim: #4a2c1a;
+      --root: #ff453a;
+      --blue: #3d7bff;
+      --wood: #1d1a17;
+      --fret: #5b606c;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; height: 100%;
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      -webkit-user-select: none; user-select: none;
+      -webkit-touch-callout: none;
+      overscroll-behavior: none;
+      -webkit-text-size-adjust: 100%;
+    }
+    body {
+      padding: env(safe-area-inset-top) env(safe-area-inset-right)
+               env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    button {
+      font: inherit; color: inherit; border: 0; background: none;
+      padding: 0; cursor: pointer; touch-action: manipulation;
+    }
+    .app {
+      max-width: 560px; height: 100%;
+      margin: 0 auto; padding: 10px 16px 0;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .view {
+      flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      display: flex; flex-direction: column; gap: 14px; padding-bottom: 24px;
+    }
+    .view[hidden] { display: none; }
+    .view > * { flex-shrink: 0; }
+    .muted { color: var(--muted); }
+
+    /* Segmented controls (also the top tabs) */
+    .seg { display: flex; background: var(--surface-2); border-radius: 10px; padding: 2px; }
+    .seg button {
+      flex: 1; min-width: 0; height: 32px; padding: 0 6px; border-radius: 8px;
+      font-size: 15px; color: var(--muted); white-space: nowrap;
+    }
+    .seg button[aria-pressed="true"] { background: #3a404d; color: var(--text); font-weight: 600; }
+    .seg button small { font-size: 11px; opacity: 0.75; margin-left: 2px; }
+    .tabs { flex: none; }
+    .tabs button { font-size: 14px; padding: 0 2px; }
+    button:active { filter: brightness(1.3); }
+
+    .section-title {
+      margin: 6px 2px -4px; font-size: 12px; font-weight: 700; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .hint { margin: -4px 2px 0; font-size: 13px; color: var(--muted); line-height: 1.4; }
+    .card { background: var(--surface); border-radius: 18px; padding: 12px 14px; }
+
+    /* Note picker: 12 notes in two rows */
+    .notes { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+    .notes button {
+      height: 38px; border-radius: 10px; background: var(--surface-2);
+      font-size: 16px; font-weight: 600; color: var(--muted);
+    }
+    .notes button[aria-pressed="true"] { background: var(--accent); color: #1a0f08; }
+
+    /* Chips (chord types, scales) */
+    .chip-group { display: grid; grid-template-columns: 74px 1fr; gap: 6px 8px; align-items: start; }
+    .chip-group .glabel { font-size: 12px; color: var(--muted); padding-top: 9px; font-weight: 600; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chips button {
+      height: 34px; padding: 0 11px; border-radius: 10px; background: var(--surface-2);
+      font-size: 15px; font-weight: 600; color: var(--muted);
+    }
+    .chips button[aria-pressed="true"] { background: var(--accent); color: #1a0f08; }
+
+    /* Chord diagram cards */
+    .cgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .cgrid.three { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .ccard {
+      background: var(--surface); border-radius: 16px; padding: 10px 6px 8px;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      border: 2px solid transparent; transition: border-color 120ms;
+    }
+    .ccard.playing { border-color: var(--accent); }
+    .ccard .cname { font-size: 19px; font-weight: 700; }
+    .ccard .csub { font-size: 13px; color: var(--accent); font-weight: 600; text-align: center; min-height: 1.2em; }
+    .ccard .cnotes { font-size: 13px; color: var(--accent); font-weight: 600; letter-spacing: 0.02em; }
+    .ccard svg { width: 100%; max-width: 170px; height: auto; display: block; }
+    .cgrid.three .ccard .cname { font-size: 16px; }
+    .group-head { grid-column: 1 / -1; margin: 6px 2px -2px; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+    .chord-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .chord-head .big { font-size: 34px; font-weight: 700; line-height: 1.1; }
+    .chord-head .formula { font-size: 15px; color: var(--muted); }
+    .chord-head .notes-line { font-size: 17px; color: var(--accent); font-weight: 600; }
+
+    /* Chord diagram SVG */
+    .dg .fret { stroke: var(--fret); stroke-width: 1; }
+    .dg .str { stroke: var(--fret); stroke-width: 1; }
+    .dg .nut { stroke: var(--text); stroke-width: 4; stroke-linecap: round; }
+    .dg .dot, .dg .barre { fill: var(--text); }
+    .dg .dlabel { fill: #111318; font-size: 8.5px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+    .dg .root { fill: var(--root); }
+    .dg .rlabel { fill: #fff; }
+    .dg .olabel { fill: var(--text); font-size: 7.5px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+    .dg .olabel.rlabel { fill: #fff; }
+    .dg .mark { fill: none; stroke: var(--muted); stroke-width: 1.3; }
+    .dg .mark.root { fill: var(--root); stroke: var(--root); }
+    .dg .xmark { stroke: var(--muted); stroke-width: 1.4; stroke-linecap: round; }
+    .dg .fretno { fill: var(--muted); font-size: 10px; text-anchor: end; dominant-baseline: central; }
+
+    /* Fretboard (vertical neck) */
+    .neck-wrap { background: var(--surface); border-radius: 18px; padding: 8px 4px 10px; }
+    .neck { display: block; width: 100%; height: auto; }
+    .neck .board { fill: var(--wood); }
+    .neck .fret { stroke: var(--fret); stroke-width: 1.5; }
+    .neck .nut { stroke: #d9d4cc; stroke-width: 5; }
+    .neck .str { stroke: #8f8a82; }
+    .neck .inlay { fill: #3a3631; }
+    .neck .fno { fill: var(--muted); font-size: 12px; text-anchor: middle; dominant-baseline: central; }
+    .neck .sname { fill: var(--muted); font-size: 13px; font-weight: 600; text-anchor: middle; }
+    .neck .band { fill: var(--accent); opacity: 0.13; }
+    .neck .n circle { fill: var(--text); stroke: #111318; stroke-width: 1.5; transition: opacity 150ms; }
+    .neck .n text { fill: #111318; font-size: 13.5px; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+    .neck .n.root circle { fill: var(--root); }
+    .neck .n.root text, .neck .n.blue text { fill: #fff; }
+    .neck .n.blue circle { fill: var(--blue); }
+    .neck .n.acc circle { fill: #4a4f5c; }
+    .neck .n.acc text { fill: var(--text); }
+    .neck .n.hl circle { fill: var(--accent); }
+    .neck .n.hl text { fill: #1a0f08; }
+    .neck .n.dim { opacity: 0.16; }
+    .neck .n.on circle { fill: var(--accent); stroke: #fff; stroke-width: 2.5; }
+    .neck .n.on text { fill: #1a0f08; }
+    .neck .n { cursor: pointer; }
+
+    /* Scale header (like the chart's title bar) */
+    .scale-head { display: flex; flex-direction: column; gap: 8px; }
+    .scale-title { display: flex; align-items: baseline; gap: 10px; }
+    .scale-title .roman { font-size: 15px; color: var(--muted); font-weight: 700; min-width: 1.4em; }
+    .scale-title .name { font-size: 21px; font-weight: 700; }
+    .scale-title .sub { font-size: 14px; color: var(--muted); }
+    .degrees { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-start; }
+    .deg { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .deg b {
+      width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+      background: var(--text); color: #111318; font-size: 14px; font-weight: 700;
+    }
+    .deg.root b { background: var(--root); color: #fff; }
+    .deg.blue b { background: var(--blue); color: #fff; }
+    .deg.off b { background: #34383f; color: #5d626c; }
+    .deg span { font-size: 12px; color: var(--accent); font-weight: 600; min-height: 1.2em; }
+    .deg.off span { visibility: hidden; }
+    .count { font-size: 13px; color: var(--muted); }
+
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .pill {
+      height: 50px; border-radius: 16px; background: var(--surface-2);
+      font-size: 17px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .pill.play { background: var(--accent); color: #1a0f08; }
+
+    /* Keys */
+    .circle { display: block; width: 100%; max-width: 380px; height: auto; margin: 0 auto; }
+    .circle .ring { fill: none; stroke: var(--line); stroke-width: 1.5; }
+    .circle g.k { cursor: pointer; }
+    .circle g.k circle { transition: opacity 150ms, fill 150ms; }
+    .circle .o circle { fill: #e9e6e1; }
+    .circle .o text { fill: #111318; font-weight: 700; }
+    .circle .m circle { fill: #646a77; }
+    .circle .m text { fill: #fff; font-weight: 600; }
+    .circle .d circle { fill: #2a2f3a; stroke: #6b7180; stroke-width: 1; }
+    .circle .d text { fill: #c9c6c0; }
+    .circle text { text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+    .circle g.k.out { opacity: 0.32; }
+    .circle g.k.in circle { fill: var(--accent); stroke: none; }
+    .circle g.k.in text { fill: #1a0f08; }
+    .circle g.k.tonic circle { fill: var(--root); }
+    .circle g.k.tonic text { fill: #fff; }
+    .circle .legend { font-size: 13px; text-anchor: start; }
+    .key-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .key-title .big { font-size: 26px; font-weight: 700; }
+    .key-title .sig { font-size: 14px; color: var(--muted); }
+    .kchords { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 10px; }
+    .kchord {
+      background: var(--surface-2); border-radius: 10px; padding: 6px 0 7px;
+      display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0;
+    }
+    .kchord .rn { font-size: 13px; font-family: "Times New Roman", Georgia, serif; color: var(--muted); }
+    .kchord .cn { font-size: 15px; font-weight: 700; white-space: nowrap; }
+    .kchord .q { font-size: 9.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .kchord.tonic { background: var(--accent-dim); box-shadow: inset 0 0 0 2px var(--accent); }
+    .scale-line { margin-top: 10px; font-size: 15px; color: var(--muted); }
+    .scale-line b { color: var(--text); font-weight: 600; margin-right: 6px; }
+    .keymap { display: block; width: 100%; height: auto; }
+    .keymap .fret { stroke: var(--fret); stroke-width: 1.5; }
+    .keymap .str { stroke: #8f8a82; stroke-width: 1.2; }
+    .keymap .nut { stroke: #d9d4cc; stroke-width: 5; }
+    .keymap .fno { fill: var(--muted); font-size: 11px; text-anchor: middle; }
+    .keymap .sname { fill: var(--muted); font-size: 12px; font-weight: 600; text-anchor: middle; dominant-baseline: central; }
+    .keymap g.km { cursor: pointer; }
+    .keymap g.km circle { fill: var(--text); }
+    .keymap g.km.home circle { fill: var(--root); }
+    .keymap g.km .rn { fill: #111318; font-weight: 700; font-family: "Times New Roman", Georgia, serif; text-anchor: middle; dominant-baseline: central; }
+    .keymap g.km.home .rn { fill: #fff; }
+    .keymap g.km .cn { fill: var(--accent); font-size: 10.5px; font-weight: 700; text-anchor: middle; }
+
+    table.ktable { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; table-layout: fixed; }
+    .ktable th { font-weight: 600; padding: 6px 0 2px; font-family: "Times New Roman", Georgia, serif; font-size: 15px; }
+    .ktable th small { display: block; font-family: -apple-system, system-ui, sans-serif; font-size: 9.5px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+    .ktable td { text-align: center; padding: 8px 0; border-top: 1px solid var(--line); white-space: nowrap; }
+    .ktable tbody tr { cursor: pointer; }
+    .ktable tbody tr.sel td { background: var(--accent-dim); color: var(--text); }
+    .ktable tbody tr.sel td:first-child { border-radius: 10px 0 0 10px; }
+    .ktable tbody tr.sel td:last-child { border-radius: 0 10px 10px 0; }
+    .ktable td:first-child { font-weight: 700; }
+
+    /* Theory */
+    .flist { display: flex; flex-direction: column; }
+    .frow {
+      display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; text-align: left;
+      padding: 9px 2px; border-top: 1px solid var(--line);
+    }
+    .frow:first-of-type { border-top: 0; }
+    .frow .fn { font-size: 15px; font-weight: 600; }
+    .frow .fn small { color: var(--muted); font-weight: 500; margin-left: 6px; }
+    .frow .ff { font-size: 13px; color: var(--muted); grid-column: 1; }
+    .frow .fnotes { grid-row: 1 / span 2; grid-column: 2; font-size: 15px; color: var(--accent); font-weight: 600; text-align: right; }
+    .fgroup { margin-top: 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+    .irow {
+      display: grid; grid-template-columns: 30px 1.25fr 0.9fr 0.7fr 0.6fr; gap: 6px; align-items: center;
+      width: 100%; text-align: left; padding: 9px 2px; border-top: 1px solid var(--line); font-size: 15px;
+    }
+    .irow.head { border-top: 0; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding-top: 2px; }
+    .irow .semi { color: var(--muted); font-variant-numeric: tabular-nums; text-align: center; }
+    .irow .iname small { display: block; color: var(--muted); font-size: 12px; }
+    .irow .isym { font-weight: 700; font-size: 17px; }
+    .irow .iaka { color: var(--muted); }
+    .irow .inote { color: var(--accent); font-weight: 600; }
+    .version { margin: 6px 0 0; text-align: center; font-size: 12px; color: var(--muted); }
+    .src-note { font-size: 12px; color: var(--muted); line-height: 1.45; margin: 0; }
+
+    /* Chord sheet (bottom sheet) */
+    .sheet-bg {
+      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 10;
+      display: flex; align-items: flex-end; justify-content: center;
+      animation: fadein 160ms ease-out;
+    }
+    .sheet-bg[hidden] { display: none; }
+    .sheet {
+      width: 100%; max-width: 560px; max-height: 88%; overflow-y: auto;
+      background: var(--bg); border-radius: 22px 22px 0 0;
+      padding: 14px 16px calc(20px + env(safe-area-inset-bottom));
+      display: flex; flex-direction: column; gap: 12px;
+      animation: slideup 220ms cubic-bezier(.2, .8, .2, 1);
+      box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.5);
+    }
+    .sheet .grab { width: 40px; height: 5px; border-radius: 3px; background: var(--surface-2); align-self: center; margin-bottom: 2px; }
+    .sheet-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .sheet-top .xbtn { flex: none; margin-top: 4px; }
+    .xbtn { width: 34px; height: 34px; border-radius: 50%; background: var(--surface-2); font-size: 18px; color: var(--muted); }
+    @keyframes fadein { from { opacity: 0; } }
+    @keyframes slideup { from { transform: translateY(40%); opacity: 0.3; } }
+
+    @media (min-width: 600px) {
+      .cgrid { grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="seg tabs" id="tabs" role="tablist" aria-label="Sections">
+      <button data-tab="chords">Chords</button>
+      <button data-tab="scales">Scales</button>
+      <button data-tab="keys">Keys</button>
+      <button data-tab="neck">Neck</button>
+      <button data-tab="theory">Theory</button>
+    </div>
+
+    <!-- Chords: open chords and movable shapes -->
+    <div class="view" id="chordsView" hidden>
+      <div class="seg" id="chordMode" role="group" aria-label="Chord set"></div>
+      <div class="seg" id="labelMode" role="group" aria-label="Dot labels"></div>
+      <div id="openPane">
+        <div class="seg" id="openKey" role="group" aria-label="Key"></div>
+        <p class="hint" style="margin-top:10px">Tap a chord to hear it. Red = root.</p>
+        <div class="cgrid" id="openGrid" style="margin-top:10px"></div>
+      </div>
+      <div id="movPane" hidden>
+        <div class="notes" id="movRoot" aria-label="Root note"></div>
+        <div class="chip-group" id="movType" style="margin-top:12px"></div>
+        <div class="card chord-head" id="movHead" style="margin-top:12px"></div>
+        <div class="cgrid" id="movGrid" style="margin-top:10px"></div>
+      </div>
+    </div>
+
+    <!-- Scales -->
+    <div class="view" id="scalesView" hidden>
+      <div class="chips" id="scaleType" aria-label="Scale"></div>
+      <div class="notes" id="scaleRoot" aria-label="Key"></div>
+      <div class="card scale-head" id="scaleHead"></div>
+      <div class="seg" id="scalePos" role="group" aria-label="Position"></div>
+      <div class="seg" id="scaleLabels" role="group" aria-label="Labels"></div>
+      <button class="pill play" id="scalePlay">▶ Play this position</button>
+      <div class="neck-wrap" id="scaleNeck"></div>
+    </div>
+
+    <!-- Keys: circle of fifths, chords in every key, key map -->
+    <div class="view" id="keysView" hidden>
+      <div class="seg" id="keyMode" role="group" aria-label="Major or minor"></div>
+      <div class="card" id="keyCircle"></div>
+      <div class="card" id="keyInfo"></div>
+      <div class="section-title" id="keyMapTitle">Where the chords are</div>
+      <p class="hint">Every chord of the key, with its root on the low E or A string. Use the movable shapes with root on the 6th or 5th string.</p>
+      <div class="card" id="keyMap"></div>
+      <div class="section-title" id="keyTableTitle">Chords in every key</div>
+      <div class="card" id="keyTable"></div>
+    </div>
+
+    <!-- Neck: every note on the fretboard -->
+    <div class="view" id="neckView" hidden>
+      <div class="notes" id="neckNote" aria-label="Highlight a note"></div>
+      <div class="seg" id="neckSpell" role="group" aria-label="Note names"></div>
+      <p class="hint">Standard tuning E A D G B E. Tap a note (here or on the neck) to find it everywhere.</p>
+      <div class="neck-wrap" id="neckBoard"></div>
+    </div>
+
+    <!-- Theory: chord formulas and intervals -->
+    <div class="view" id="theoryView" hidden>
+      <div class="section-title">Notes from root</div>
+      <div class="notes" id="theoryRoot" aria-label="Root note"></div>
+      <div class="section-title">Chord formulas</div>
+      <div class="card flist" id="formulaList"></div>
+      <div class="section-title">Chromatic intervals</div>
+      <div class="card" id="intervalList"></div>
+      <p class="src-note">A few slips on the printed chart are corrected here: the half-diminished 7 formula
+        (R ♭3 ♭5 ♭7), augmented (R 3 ♯5), the m3 alias (Aug 2), and 13 / ♭13 under M6 / m6.</p>
+      <p class="version" id="version"></p>
+    </div>
+  </main>
+
+  <div class="sheet-bg" id="sheetBg" hidden>
+    <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

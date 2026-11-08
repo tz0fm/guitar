@@ -1,0 +1,15 @@
+{
+  "name": "guitar",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline guitar reference web app for iPhone: chords, scales, keys and the fretboard.",
+  "scripts": {
+    "start": "node serve.mjs",
+    "check": "node tools/check_data.mjs",
+    "icons": "python3 tools/make_icons.py public/icons",
+    "deploy": "git subtree push --prefix public origin gh-pages"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
